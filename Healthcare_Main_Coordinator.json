@@ -1,0 +1,456 @@
+{
+  "name": "Healthcare_Main_Coordinator",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "id": "17bbea35-df81-4bc4-ae90-11bcb6938e25",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        256
+      ],
+      "webhookId": "c406c326-a214-4800-96d7-42a4c209e75e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "chat-input-not-empty",
+              "leftValue": "={{ ($json.chatInput || \"\").trim() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3843db1-aa45-4fff-8c20-a31faec73bf5",
+      "name": "Has Question",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are the Coordinator of an AI healthcare information assistant for general health EDUCATION only.\n\nYour job on every health question:\n1. Identify the topic.\n2. Call exactly ONE specialist tool (call a second one only if the question clearly covers two areas):\n   - ask_general_health_agent: hygiene, hydration and water, sleep, healthy lifestyle, basic health awareness.\n   - ask_symptoms_agent: common symptoms and common illnesses (cold, fever, headache, cough) and when to see a doctor.\n   - ask_medicine_agent: medicine safety, storage, terminology, antibiotics, why prescriptions matter.\n   - ask_nutrition_agent: balanced diet, nutrition, fruits and vegetables, healthy drinks, physical activity.\n3. Pass the user's question as a clear, self-contained question in the \"question\" field.\n4. Return the specialist's \"response\" to the user in simple language. Keep its facts and its \"Source:\" line. Do NOT add medical facts of your own and do not contradict the specialist.\n\nRules:\n- Never answer a health question from your own knowledge without calling a specialist.\n- If the specialist's status is \"no_matching_records\", \"database_error\", \"ai_error\", \"missing_question\" or \"invalid_response\", or its response is empty, tell the user honestly that verified information is not available right now and suggest consulting a doctor, pharmacist or other qualified professional. Do not fill the gap yourself.\n- Never diagnose, prescribe, recommend doses, or make personalised treatment decisions. If asked, explain politely that only a qualified healthcare professional can do this.\n- URGENT: if the user describes possible emergency signs (chest pain, difficulty breathing, severe bleeding, stroke signs such as face drooping or arm weakness, fainting, seizures, poisoning or overdose, thoughts of self-harm or suicide), begin your reply by telling them to call emergency services now (112 in India) or go to the nearest hospital. For thoughts of self-harm, also encourage them to reach a trusted person or a mental health helpline (in India, Tele-MANAS 14416).\n- For greetings or questions about what you can do, reply briefly without calling a tool. Politely decline non-health topics.\n- Do not ask for names, phone numbers, addresses or medical record numbers, and do not repeat sensitive personal details back.\n- End health answers with a short reminder that this is general information, not medical advice.",
+          "maxIterations": 6,
+          "enableStreaming": false
+        }
+      },
+      "id": "0b1b3bc1-a170-4fc1-a3d2-da02c90fe2e7",
+      "name": "AI Agent - Coordinator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        704,
+        0
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {
+          "maxOutputTokens": 1024,
+          "temperature": 0.2
+        }
+      },
+      "id": "1998d508-e6c2-4774-93d0-23e2a3654922",
+      "name": "Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 6
+      },
+      "id": "4a708a68-b690-41ba-8001-986daffdc513",
+      "name": "Session Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        576,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Send the question to the General Health Agent. Use for general health education: hygiene, handwashing, hydration and why water matters, sleep, healthy lifestyle habits, and basic health awareness.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "N1S3lbnNfjRMoiSF",
+          "cachedResultName": "General_Health_Agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('question', \"The user's general health question, rewritten as one clear self-contained question (resolve follow-ups using the conversation). Leave out names and other personal identifiers.\") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "5ab01854-4a99-4ace-ba41-828db6c7237c",
+      "name": "ask_general_health_agent",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        704,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Send the question to the Symptoms Information Agent. Use for questions about common symptoms or common illnesses (e.g. common cold, fever, headache, cough), their possible common causes, and when to see a doctor.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "7JYXV03pqOwkui4d",
+          "cachedResultName": "Symptoms_Agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('question', \"The user's symptom question, rewritten as one clear self-contained question (resolve follow-ups using the conversation). Leave out names and other personal identifiers.\") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "3471c458-ed2c-44f3-b701-c4099b8d7b90",
+      "name": "ask_symptoms_agent",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Send the question to the Medicine Information Agent. Use for medicine safety, safe storage and disposal, medicine terminology (generic vs brand, active ingredient), antibiotics, and why prescriptions and professional guidance matter.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "QJzmlAHxY70z3wRf",
+          "cachedResultName": "Medicine_Agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('question', \"The user's medicine question, rewritten as one clear self-contained question (resolve follow-ups using the conversation). Leave out names and other personal identifiers.\") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "eaaf066a-ed1e-419d-b440-7bf2ee1c364f",
+      "name": "ask_medicine_agent",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        960,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Send the question to the Nutrition and Wellness Agent. Use for balanced diet, nutrition, fruits and vegetables, healthy drinks, physical activity and exercise amounts, and healthy lifestyle from a food and fitness angle.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "dbokGw8WIfqWRkx5",
+          "cachedResultName": "Nutrition_Agent"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "question": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('question', \"The user's nutrition or wellness question, rewritten as one clear self-contained question (resolve follow-ups using the conversation). Leave out names and other personal identifiers.\") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "question",
+              "displayName": "question",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "4881d100-9e3e-4f8a-8e9f-466882b8c099",
+      "name": "ask_nutrition_agent",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "o1",
+              "name": "output",
+              "type": "string",
+              "value": "={{ (typeof $json.output === \"string\" && $json.output.trim().length > 0) ? $json.output.trim() : \"Sorry, I could not prepare a reliable answer. Please rephrase your question or consult a qualified healthcare professional.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6ca8bd58-1b8e-49be-9b3c-99d333df5f08",
+      "name": "Final Chat Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "output",
+              "type": "string",
+              "value": "Sorry, the assistant is temporarily unable to answer. Please try again in a moment. For health concerns, please contact a doctor or pharmacist, and in an emergency call 112 (India) or go to the nearest hospital."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b060e77c-506e-4532-a8c2-efdc43fcc90e",
+      "name": "Coordinator Fallback",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1296,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "q1",
+              "name": "output",
+              "type": "string",
+              "value": "Please type a healthcare question, for example: \"Why is water important for our body?\" I can share general information about health habits, common symptoms, medicine safety, and nutrition."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e2c9ad21-9320-4c9c-932b-a39058d8302d",
+      "name": "Ask for a Question",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Has Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Question": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask for a Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Coordinator": {
+      "main": [
+        [
+          {
+            "node": "Final Chat Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Coordinator Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ask_general_health_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ask_symptoms_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ask_medicine_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ask_nutrition_agent": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Coordinator",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "906a73be-1fe5-4df1-b486-784012e1dc78",
+  "meta": {
+    "instanceId": "847e6758d908f7b07fcd1aca64d8c6c993cd3b9e8c6a0755b815140a44fed237"
+  },
+  "nodeGroups": [],
+  "id": "x4NS8RNb7NykgwQ3",
+  "tags": []
+}
